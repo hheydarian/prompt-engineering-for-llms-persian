@@ -310,36 +310,114 @@ App: Set in Thailand, it is the story of a young backpacker’s search for a leg
 ابتدا، کتابخانه‌های مورد نیاز را درون‌ریزی (import) کرده و یک نمونه از کالینت OpenAI را مقداردهی اولیه می‌کنیم:
 
 ```python
-import numpy as np import faiss from openai import OpenAI (OpenAI) = client در مرحله بعد، تمام نقدهایی را که این کاربر تاکنون ثبت کرده است، جمع‌آوری می‌کنیم:![تصویر](../../../assets/image/05/figure_113_1.png)
+import numpy as np
+import faiss
+from openai import OpenAI
+
+client = OpenAI()
 ```
 
-[ = reviews "I hate stories about backpacking. It's boring.", "A moving exploration of racial injustice and moral growth.", "Compelling dystopia, but overwhelmingly bleak.", "Timeless romance with sharp social commentary.", "Epic sea adventure with philosophical depth.", "Mesmerizing magic and romance with rich world-building.", "Beautifully descriptive, but predictable plot.", "A detailed and emotional journey through loss and art.", "Fresh take on Greek mythology, but pacing dragged.", "Brilliant exploration of complex relationships and personal growth.", "Another bland romantic utopia. This time on a tropical island.", ] ما به روشی برای بازیابی بردارهای تعبیه (embedding vectors) نیاز خواهیم داشت. در اینجا، تابع get_embedding با استفاده از یک قطعه متن ورودی، بردار تعبیه را از یک مدل OpenAI بازیابی می‌کند:
+در مرحله بعد، تمام نقدهایی را که این کاربر تاکنون ثبت کرده است، جمع‌آوری می‌کنیم:
 
+```python
+reviews = [
+    "I hate stories about backpacking. It's boring.",
+    "A moving exploration of racial injustice and moral growth.",
+    "Compelling dystopia, but overwhelmingly bleak.",
+    "Timeless romance with sharp social commentary.",
+    "Epic sea adventure with philosophical depth.",
+    "Mesmerizing magic and romance with rich world-building.",
+    "Beautifully descriptive, but predictable plot.",
+    "A detailed and emotional journey through loss and art.",
+    "Fresh take on Greek mythology, but pacing dragged.",
+    "Brilliant exploration of complex relationships and personal growth.",
+    "Another bland romantic utopia. This time on a tropical island.",
+]
+```
+
+ما به روشی برای بازیابی بردارهای تعبیه (embedding vectors) نیاز خواهیم داشت. در اینجا، تابع `get_embedding` با استفاده از یک قطعه متن ورودی، بردار تعبیه را از یک مدل OpenAI بازیابی می‌کند:
+
+```python
 def get_embedding(text):
+    text = text.replace("\n", " ")
+    return client.embeddings.create(
+        input=[text],
+        model="text-embedding-3-small"
+    ).data[0].embedding
+```
 
-") " text.replace("\n", = text return client.embeddings.create([text], = input model="text-embedding-3-small",).data[0].embedding سپس، یک تابع نمایه‌سازی ایجاد می‌کنیم که بردارهای مربوط به هر یک از نقدهای ما را بازیابی کرده، یک نمایٔه FAISS را نمونه‌سازی می‌کند و بردارها را به این نمایه می‌افزاید. این تابع در نهایت نمایٔه برداری را جهت استفاده‌های بعدی در فرآیند جستجو بازمی‌گرداند:
+سپس، یک تابع نمایه‌سازی ایجاد می‌کنیم که بردارهای مربوط به هر یک از نقدهای ما را بازیابی کرده، یک نمایه FAISS را نمونه‌سازی می‌کند و بردارها را به این نمایه می‌افزاید. این تابع در نهایت نمایه برداری را جهت استفاده‌های بعدی در فرآیند جستجو بازمی‌گرداند:
 
+```python
 def index_reviews(reviews):
+    # get the embeddings for the reviews
+    vectors = []
+    for review in reviews:
+        vectors.append(get_embedding(review))
 
-get the embeddings for the reviews # [] = vectors for review in reviews:
+    # create the index
+    d = len(vectors[0])  # dimension of the vectors
+    index = faiss.IndexFlatL2(d)
 
-vectors.append(get_embedding(review)) create the index # dimension of the vectors # len(vectors[0]) = d faiss.IndexFlatL2(d) = index reshape vectors into 2D array and then add to the index # np.array(vectors(.reshape)len(vectors), -1) = vectors index.add(vectors) return index در مرحلٔه بعد، یک تابع بازیابی می‌سازیم. این تابع با دریافت یک پرس‌وجو (query)، بردار تعبیٔه متن پرس‌وجو را تولید می‌کند، نزدیک‌ترین همسایه‌ها (nearest neighbors) را در نمایه می‌یابد و با استفاده از شناسه‌های نزدیک‌ترین همسایه‌ها، متن اصلی نقد را گردآوری می‌نماید:
+    # reshape vectors into 2D array and then add to the index
+    vectors = np.array(vectors).reshape(len(vectors), -1)
+    index.add(vectors)
+    return index
+```
 
+در مرحله بعد، یک تابع بازیابی می‌سازیم. این تابع با دریافت یک پرس‌وجو (`query`)، بردار تعبیه متن پرس‌وجو را تولید می‌کند، نزدیک‌ترین همسایه‌ها (`nearest neighbors`) را در نمایه می‌یابد و با استفاده از شناسه‌های نزدیک‌ترین همسایه‌ها، متن اصلی نقد را گردآوری می‌نماید:
+
+```python
 def retrieve_reviews(index, query, reviews, k=2):
+    # get the embedding for the query
+    query_vector = get_embedding(query)
 
-get the embedding for the query # get_embedding(query) = query_vector reshape vector into 2D array and then search the index # np.array(query_vector(.reshape)1, -1) = query_vector index.search(query_vector, k) = distances, indices return [reviews[i] for i in indices[0]] بیایید عملکرد آن را بیازماییم:
+    # reshape vector into 2D array and then search the index
+    query_vector = np.array(query_vector).reshape(1, -1)
+    distances, indices = index.search(query_vector, k)
+    return [reviews[i] for i in indices[0]]
+```
 
-index_reviews(reviews) = index "The Beach by Alex Garland critiques backpacker culture by exposing the = book selfishness and moral decay behind their pursuit of an untouched paradise." retrieve_reviews(index, book, reviews) = related_reviews print(related_reviews) این کد تکه‌متن‌های منطقی زیر را از نقدهای پیشین کاربر بازمی‌گرداند:
+بیایید عملکرد آن را بیازماییم:
 
-"I hate stories about backpacking. It's boring." "Another bland romantic utopia. This time on a tropical island." اکنون که فرآیند بازیابی به درستی کار می‌کند، واپسین بخش از ساخت برنامٔه RAG، قرار دادن نتایج درون یک پرامپت است؛
+```python
+index = index_reviews(reviews)
+book = "The Beach by Alex Garland critiques backpacker culture by exposing the selfishness and moral decay behind their pursuit of an untouched paradise."
+related_reviews = retrieve_reviews(index, book, reviews)
+print(related_reviews)
+```
 
-به طوری که مدل نحؤه استفاده از آن‌ها را متوجه شود. برای این منظور، تابع predict_rating زیر را ایجاد می‌کنیم که از متن قالبی ثابت (static boilerplate) جهت صورت‌بندی مسئله و از محتوای پویا (dynamic content) برای انتقال زمینٔه بلادرنگ کاربر استفاده می‌نماید:
+این کد تکه‌متن‌های منطقی زیر را از نقدهای پیشین کاربر بازمی‌گرداند:
 
+```text
+["I hate stories about backpacking. It's boring.", "Another bland romantic utopia. This time on a tropical island."]
+```
+
+اکنون که فرآیند بازیابی به درستی کار می‌کند، واپسین بخش از ساخت برنامه RAG، قرار دادن نتایج درون یک پرامپت است؛ به طوری که مدل نحوه استفاده از آن‌ها را متوجه شود. برای این منظور، تابع `predict_rating` زیر را ایجاد می‌کنیم:
+
+```python
 def predict_rating(book, related_reviews):
+    reviews = "\n".join(related_reviews)
+    prompt = (
+        "Here is a book I might want to read:\n" + book + "\n\n" +
+        "Here are relevant reviews from the past:\n" + reviews + "\n\n" +
+        "On a scale of 1 (worst) to 5 (best), how likely am I to enjoy this book? " +
+        "Reply with no explanation, just a number."
+    )
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=2000,
+        temperature=0.7,
+    )
+    return response.choices[0].message.content
+```
 
-"\n".join(related_reviews) = reviews (= prompt "Here is a book I might want to read:\n" + book + "\n\n" + "Here are relevant reviews from the past:\n" + reviews + "\n\n" + + " "On a scale of 1 (worst(to 5)best), + " "how likely am I to enjoy this book? "Reply with no explanation, just a number.") client.chat.completions.create(= response model="gpt-4o-mini", messages=[{ "role": "user", "content": prompt }], max_tokens=2000, temperature=0.7,) return response.choices[0].message.content و در نهایت، برنامٔه RAG خود را فراخوانی می‌کنیم تا امتیاز احتمالی کاربر به کتاب را پیش‌بینی کند:
+و در نهایت، برنامه RAG خود را فراخوانی می‌کنیم تا امتیاز احتمالی کاربر به کتاب را پیش‌بینی کند:
 
-predict_rating(book, related_reviews) پرامپت نهایی ساخته‌شده به شرح زیر است:.
+```python
+predict_rating(book, related_reviews)
+``` پرامپت نهایی ساخته‌شده به شرح زیر است:.
 
 Here is a book I might want to read:
 

@@ -28,35 +28,92 @@
 
 تعریف و استفاده از ابزارها ● نخست، توابع واقعی را پیکربندی می‌کنیم که به دنیای واقعی دسترسی پیدا کرده، اطلاعات را گردآوری می‌کنند و تغییراتی در محیط به وجود می‌آورند. پیاده‌سازی زیر به صورت صوری و ماک (mocked out) انجام شده است، اما در صورت تمایل، یافتن کتابخانه‌ای در پایتون که به شما اجازه تعامل با یک ترموستات واقعی را بدهد دشوار نخواهد بود:
 
-import random (def get_room_temp):
+```python
+import random
 
-return str(random.randint(60, 80)) def set_room_temp(temp):
+def get_room_temp():
+    return str(random.randint(60, 80))
 
-return "DONE" در مرحله بعد، هر دوی این توابع را در قالب یک اسکیمای JSON نمایش می‌دهیم تا OpenAI بتواند آن‌ها را در پرامپت بازنمایی کند:
+def set_room_temp(temp):
+    return "DONE"
+```
 
-[ = tools { "type": "function", { "function":
+در مرحله بعد، هر دوی این توابع را در قالب یک اسکیمای JSON نمایش می‌دهیم تا OpenAI بتواند آن‌ها را در پرامپت بازنمایی کند:
 
-"name": "get_room_temp", "description": "Get the ambient room temperature in Fahrenheit", }, }, { "type": "function", { "function":
+```json
+tools = [
+  {
+    "type": "function",
+    "function": {
+      "name": "get_room_temp",
+      "description": "Get the ambient room temperature in Fahrenheit"
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "set_room_temp",
+      "description": "Set the ambient room temperature in Fahrenheit",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "temp": {
+            "type": "integer",
+            "description": "The desired room temperature in ºF"
+          }
+        },
+        "required": ["temp"]
+      }
+    }
+  }
+]
+```
 
-"name": "set_room_temp", "description": "Set the ambient room temperature in Fahrenheit", { "parameters":
+اسکیمای JSON هر دو تابع را به همراه آرگومان‌هایشان اعلام می‌کند. سپس، یک دیکشنری جستجو (`look-up dictionary`) ایجاد می‌کنیم تا ابزارهای ما بر اساس نام بازیابی شوند:
 
-"type": "object", { "properties":
+```python
+available_functions = {
+    "get_room_temp": get_room_temp,
+    "set_room_temp": set_room_temp,
+}
+```
 
-{ "temp":
+با آماده‌سازی همه این بخش‌ها، اکنون تابع `process_messages` را برای مدیریت و اجرای ابزارها پیاده‌سازی می‌کنیم:
 
-"type": "integer", "description": "The desired room temperature in ºF", }, }, "required": ["temp"], }, }, } ] اسکیمای JSON هر دو تابع را به همراه آرگومان‌هایشان اعالن می‌کند. توابع و آرگومان‌ها همچنین دارای متن توضیحی (description) هستند که نحوه استفاده مورد انتظار از توابع و آرگومان‌ها را به مدل نشان می‌دهد.
+```python
+# مثال ۸ - ۱: الگوریتم پردازش پیام‌ها و فراخوانی و ارزیابی ابزارها
+import json
 
-سپس، یک دیکشنری جستجو (look-up dictionary) ایجاد می‌کنیم تا ابزارهای ما در صورت لزوم بتوانند بر اساس نام بازیابی شوند:
+def process_messages(client, messages):
+    # Step 1: send the messages to the model along with the tool definitions
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=messages,
+        tools=tools,
+    )
+    response_message = response.choices[0].message
 
-{ = available_functions "get_room_temp": get_room_temp, "set_room_temp": set_room_temp, } با آماده‌سازی همه این بخش‌ها، اکنون آماده‌ایم تا قابلیت اصلی مدیریت پیام‌ها را ایجاد کنیم. تابع process_messages در مثال ۸ - شبیه به کدهایی است که در مستندات فراخوانی تابع۱ (function calling) در OpenAI پیدا می‌کنید، اما این پیاده‌سازی بهبود یافته است زیرا اجازه می‌دهد ابزارها به‌سادگی تعویض شوند — تنها کافی است تعاریف tools و available_functions را که پیش‌تر شرح داده شد، تغییر دهید.
+    # Step 2: append the model's response to the conversation
+    messages.append(response_message)
 
-مثال ۸ - ۱. الگوریتم پردازش پیام‌ها و فراخوانی و ارزیابی ابزارها import json def process_messages(client, messages):
+    # Step 3: check if the model wanted to use a tool
+    if response_message.tool_calls:
+        # Step 4: extract tool invocation and make evaluation
+        for tool_call in response_message.tool_calls:
+            function_name = tool_call.function.name
+            function_to_call = available_functions[function_name]
+            function_args = json.loads(tool_call.function.arguments)
+            # note: in python the ** operator unpacks a dictionary into keyword arguments
+            function_response = function_to_call(**function_args)
 
-Step 1: send the messages to the model along with the tool definitions # client.chat.completions.create(= response model="gpt-4o", messages=messages, tools=tools,) response.choices[0].message = response_message Step 2: append the model's response to the conversation # (it may be a function call or a normal message) # messages.append(response_message) Step 3: check if the model wanted to use a tool # if response_message.tool_calls:
-
-Step 4: extract tool invocation and make evaluation # for tool_call in response_message.tool_calls:
-
-tool_call.function.name = function_name available_functions[function_name] = function_to_call json.loads(tool_call.function.arguments) = function_args function_to_call(= function_response operator unpacks a ** note: in python the # dictionary into keyword arguments # **function_args) Step 5: extend conversation with function response # so that the model can see it in future turns # messages.append({ "tool_call_id": tool_call.id, "role": "tool", "name": function_name, "content": function_response, }) تابع process_messages در این مثال، فهرستی از پیام‌ها را دریافت کرده و آن‌ها را به مدل منتقل می‌کند (در مرحله ۱.) مدل همواره پاسخی با هویت و نقش دستیار (assistant) بازمی‌گرداند، و این پیام به فهرست پیام‌های ارائه‌شده اضافه می‌شود (در مرحله ۲...)). این امکان وجود دارد که پیام دستیار۲ (assistant) شامل محتوای متنی ساده برای کاربر، درخواست‌های فراخوانی ابزار (tool invocation requests) یا هر دو باشد. اگر ابزارهایی درخواست شوند (مشابه گام)، آن‌گاه به ازای هر۳ درخواست فراخوانی ابزار، نام تابع و آرگومان‌های آن را استخراج می‌کنیم، تابع واقعی را فراخوانی می‌نماییم (در گام)، و سپس۴ خروجی تابع را به یک پیام جدید اضافه کرده و آن را به انتهای فهرست پیام‌ها می‌افزاییم (در گام). پس از اتمام اجرای تابع۵، پیام‌های ارائه‌شده با پیام‌های جدیدی که از ورودی مدل مشتق شده‌اند، بسط می‌یابند.
+            # Step 5: extend conversation with function response
+            messages.append({
+                "tool_call_id": tool_call.id,
+                "role": "tool",
+                "name": function_name,
+                "content": function_response,
+            })
+``` تابع process_messages در این مثال، فهرستی از پیام‌ها را دریافت کرده و آن‌ها را به مدل منتقل می‌کند (در مرحله ۱.) مدل همواره پاسخی با هویت و نقش دستیار (assistant) بازمی‌گرداند، و این پیام به فهرست پیام‌های ارائه‌شده اضافه می‌شود (در مرحله ۲...)). این امکان وجود دارد که پیام دستیار۲ (assistant) شامل محتوای متنی ساده برای کاربر، درخواست‌های فراخوانی ابزار (tool invocation requests) یا هر دو باشد. اگر ابزارهایی درخواست شوند (مشابه گام)، آن‌گاه به ازای هر۳ درخواست فراخوانی ابزار، نام تابع و آرگومان‌های آن را استخراج می‌کنیم، تابع واقعی را فراخوانی می‌نماییم (در گام)، و سپس۴ خروجی تابع را به یک پیام جدید اضافه کرده و آن را به انتهای فهرست پیام‌ها می‌افزاییم (در گام). پس از اتمام اجرای تابع۵، پیام‌های ارائه‌شده با پیام‌های جدیدی که از ورودی مدل مشتق شده‌اند، بسط می‌یابند.
 
 بیایید بررسی کنیم که تابع process_messages در هنگام مواجهه با درخواست کاربر مبنی بر تغییر دما چگونه عمل می‌کند:
 
@@ -357,19 +414,45 @@ AS325 from IAD to SEA "} ]
 
 مدیریت گفتگوها ● با ارجاع به مثال ۸ -، تابع۲ process_messages مجموعه‌ای از پیام‌ها را دریافت کرده و سپس پیام‌های جدی مربوط به ابزار و ارزیابی‌ها را به آن الحاق می‌کند. این تابع ممکن است این کار را چندین بار تکرار کند. در نهایت،فراخوانی process_messages پاسخی را از سوی دستیار الحاق می‌کند که دربرگیرنده هرگونه اطلاعات به‌دست‌آمده از استفاده از ابزار است. تابع run_conversation تابع process_messages را کپسوله‌سازی می‌کند (در بر می‌گیرد). این تابع، لیست messages را مقداردهی اولیه کرده، به‌صورت تکرارشونده ورودی کاربر را درخواست می‌کند، پیام کاربر را ضمیمه می‌نماید و پیام‌ها را به تابع process_messages ارسال می‌کند. تابع run_conversation همچنین پیام‌های کاربر و دستیار را چاپ کرده و یک تجربه کاربری متن قابل قبول را در اختیار ما قرار می‌دهد. نتیجه، یک جریان گفتگوی طبیعی است که در صورت لزوم می‌تواند از ابزارها نیز بهره ببرد.
 
-مثال ۸ - ۲. تابع run_conversation وضعیت کامل گفتگو را، شامل ورودی کاربر و خروجی عامل، مدیریت می‌کند from openai.types.chat import ChatCompletionMessage def run_conversation(client):
+```python
+# مثال ۸ - ۲: تابع run_conversation وضعیت کامل گفتگو را مدیریت می‌کند
+from openai.types.chat import ChatCompletionMessage
 
-initialize messages and create preamble describing the agent's # functionality # [ = messages { "role": "system", "content": "You are a helpful thermostat assistant", } note that tools are defined in the global namespace # ] while True:
+def run_conversation(client):
+    # initialize messages and create preamble describing the agent's functionality
+    # note that tools are defined in the global namespace
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a helpful thermostat assistant",
+        }
+    ]
 
-request for user input and append to messages # "(input)">> = user_input "": == if user_input break messages.append({ "role": "user", "content": user_input, }) while True:
+    while True:
+        # request for user input and append to messages
+        user_input = input(">> ")
+        if user_input == "":
+            break
+        messages.append({
+            "role": "user",
+            "content": user_input,
+        })
 
-process_messages(client, messages) = new_messages messages[-1] = last_message if not isinstance(last_message, ChatCompletionMessage):
+        while True:
+            new_messages = process_messages(client, messages)
+            last_message = messages[-1]
+            if not isinstance(last_message, ChatCompletionMessage):
+                # this is just a tool response message
+                continue
+            # if last message is an assistant response then print it
+            if last_message.content is not None:
+                print(last_message.content)
+            # if it's not a tool call then the assistant is waiting for the next message
+            if last_message.tool_calls is None:
+                break
 
-this is just a tool response message # continue if last message is an assistant response then print it # if last_message.content is not None:
-
-print(last_message.content) if it's not a tool call then the assist is waiting # for the next message—break and wait for input # if last_message.tool_calls is None:
-
-break return messages برای روشن‌تر شدن این فرایند، شکل ۸ - یک نمودار توالی۲ (sequence diagram) را ارائه می‌دهد که طراحی عامل گفتگوگر را به تصویر می‌کشد. در اینجا، ما عامل را به صورت توالی‌ای از تعاملات میان کاربر، برنامه کاربردی (application)، مدل، و ابزار تعمیم داده‌ایم. این نمودار توالی، جزئیات داده‌های انتقال‌یافته میان کنشگران (actors) را شرح داده و اقدامات صورت‌گرفته توسط برنامه را برجسته می‌سازد.
+    return messages
+``` برای روشن‌تر شدن این فرایند، شکل ۸ - یک نمودار توالی۲ (sequence diagram) را ارائه می‌دهد که طراحی عامل گفتگوگر را به تصویر می‌کشد. در اینجا، ما عامل را به صورت توالی‌ای از تعاملات میان کاربر، برنامه کاربردی (application)، مدل، و ابزار تعمیم داده‌ایم. این نمودار توالی، جزئیات داده‌های انتقال‌یافته میان کنشگران (actors) را شرح داده و اقدامات صورت‌گرفته توسط برنامه را برجسته می‌سازد.
 
 در ابتدای این فصل و در خالل بحث ابزارها، تابع process_messages را چندین بار متوالی اجرا کردیم. این اقدام نمایی اجمالی از عملکرد عامل گفتگوگر را به ما نشان داد. با این حال، این سیستم تا زمانی که درون حلقه run_conversation تعریف‌شده در مثال ۸ - اجرا نشود، حقیقتاً یک عامل گفتگوگر محسوب نمی‌شود. در جدول۲ ۸ -، نحوه تعامل عامل گفتگوگر۲ با کاربر در زمان اجرای run_conversation نشان داده شده است.
 

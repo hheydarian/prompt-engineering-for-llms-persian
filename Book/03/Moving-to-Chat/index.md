@@ -166,16 +166,45 @@ Indeed, a delightful indoor activity for a family of four could be a spirited bo
 API تکمیل چت (Chat Completion API) ● در ادامه یک مثال ساده از نحوه استفاده از API چ OpenAI در زبان پایتون آورده شده است:
 
 ```python
-from openai import OpenAI (OpenAI) = client client.ChatCompletion.create(= response model="gpt-4o", messages=[ {"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": "Tell me a joke."}, ]) این ساختار بسیار سرراست و شفاف است؛ ابتدا نقشی بسیار کلی برای دستیار (assistant) تعریف می‌کند و سپس درخواست کاربر را ارسال می‌نماید. اگر همه‌چیز به درستی پیش برود، مدل پاسخی شبیه به ساختار زیر برمی‌گرداند:
+from openai import OpenAI
+
+client = OpenAI()
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "Tell me a joke."},
+    ]
+)
 ```
 
-{ "id": "chatcmpl-9sH48lQSdENdWxRqZXqCqtSpGCH5S", [ "choices":
+این ساختار بسیار سرراست و شفاف است؛ ابتدا نقشی کلی برای دستیار (`assistant`) تعریف می‌کند و سپس درخواست کاربر را ارسال می‌نماید. اگر همه‌چیز به درستی پیش برود، مدل پاسخی شبیه به ساختار زیر در قالب JSON برمی‌گرداند:
 
-{ "finish_reason": "stop", "index": 0, "logprobs": null, { "message":
-
-"content": "Why don't scientists trust atoms?\n\nBecause they make up everything!", "role": "assistant" } } ], "created": 1722722340, "model": "gpt-4o-mini-2024-07-18", "object": "chat.completion", "system_fingerprint": "fp_0f03d4f0ee", { "usage":
-
-"completion_tokens": 12, "prompt_tokens": 11, "total_tokens": 23 } } متوجه نکته‌ای شدید؟ هیچ اثری از ChatML نیست! توکن‌های ویژه <|im_start|> و <|im_end|> که در بخش به آن‌ها اشاره کردیم نیز وجود ندارند. این در واقع بخشی از فوت کوزه‌گری سیستم است — کارب ِقبلی API قادر به تولید نمادهای ویژه نیست. تبدیل ساختار JSON پیام‌ها به قالب ChatML، منحصر در لایه پشت صحنه API صورت می‌پذیرد (خودتان می‌توانید آن را امتحان کنید! شکل ۳ - را ببینید). با برقراری چنین لایه حفاظتی، تنها راهی که کاربران می‌توانند۱ محتوایی را به پیام سیستم (system message) تزریق نمایند این است که شما ناخواسته به آن‌ها چنین اجازه‌ای را بدهید.
+```json
+{
+  "id": "chatcmpl-9sH48lQSdENdWxRqZXqCqtSpGCH5S",
+  "object": "chat.completion",
+  "created": 1722722340,
+  "model": "gpt-4o-mini-2024-07-18",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Why don't scientists trust atoms?\n\nBecause they make up everything!"
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 11,
+    "completion_tokens": 12,
+    "total_tokens": 23
+  },
+  "system_fingerprint": "fp_0f03d4f0ee"
+}
+``` متوجه نکته‌ای شدید؟ هیچ اثری از ChatML نیست! توکن‌های ویژه <|im_start|> و <|im_end|> که در بخش به آن‌ها اشاره کردیم نیز وجود ندارند. این در واقع بخشی از فوت کوزه‌گری سیستم است — کارب ِقبلی API قادر به تولید نمادهای ویژه نیست. تبدیل ساختار JSON پیام‌ها به قالب ChatML، منحصر در لایه پشت صحنه API صورت می‌پذیرد (خودتان می‌توانید آن را امتحان کنید! شکل ۳ - را ببینید). با برقراری چنین لایه حفاظتی، تنها راهی که کاربران می‌توانند۱ محتوایی را به پیام سیستم (system message) تزریق نمایند این است که شما ناخواسته به آن‌ها چنین اجازه‌ای را بدهید.
 
 شکل ۳: - هنگام فراخوانی مدل‌های۱ GPT از طریق یک API تکمیل چت، تمامی توکن‌های ویژه فیلتر شده و برای مدل نامرئی خواهند بود.![تصویر](../../../assets/image/03/figure_58_1.png)
 
@@ -205,11 +234,26 @@ temperature عددی که میزان خلاقیت پاسخ‌های تکمیل�
 
 ● با استفاده از این پرامپت، تنظیمات دما (temperature) را شخص تغییر دهید و مشاهده کنید که دما چگونه بر خلاقیت تأثیر می‌گذارد:
 
-10 = n client.chat.completions.create(= resp model="gpt-4o", messages=[ {"role": "user", "content": "Hey there buddy. You were driving a little erratically back there. Have you had anything to drink tonight?"}, {"role": "assistant", "content": "No sir. I haven't had anything to drink."}, {"role": "user", "content": "We're gonna need you to take a field sobriety test. Can you please step out of the vehicle?"}, ], temperature=0.0, n=n, max_tokens=100,) for i in range(n):
-
 ```python
-print(resp.choices[i].message.content) print("---------------------------") در اینجا، شما تکمیل متن۱۰ (completion) را درخواست می‌کنید. با تنظیم دما روی 0.0، چه نسبتی از پاسخ‌ها خسته‌کننده و قابل پیش‌بینی هستند؟ چنین پاسخ‌هایی در این مایه‌ها خواهند بود: «از بابت هرگونه نگرانی که ممکن است ایجاد کرده باشم پوزش می‌طلبم. با این حال، من به‌عنوان یک مدل زبانی هوش مصنوعی، حضور فیزیکی یا توانایی رانندگی یک وسیله نقلیه را ندارم.» اگر دما را تا حدود 1.0 ب ال ببرید، احتمال اینکه دستیار وارد بازی و نقش‌آفرینی شود بیشتر است — و در مقدار حداکثری، یعنی 2.0، دستیار مسلم دیگر نباید پشت فرمان بنشیند!
+n = 10
+resp = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "user", "content": "Hey there buddy. You were driving a little erratically back there. Have you had anything to drink tonight?"},
+        {"role": "assistant", "content": "No sir. I haven't had anything to drink."},
+        {"role": "user", "content": "We're gonna need you to take a field sobriety test. Can you please step out of the vehicle?"},
+    ],
+    temperature=0.0,
+    n=n,
+    max_tokens=100,
+)
+
+for i in range(n):
+    print(resp.choices[i].message.content)
+    print("---------------------------")
 ```
+
+در اینجا، شما ۱۰ تکمیل متن (`completion`) را درخواست می‌کنید. با تنظیم دما روی `0.0`، چه نسبتی از پاسخ‌ها خسته‌کننده و قابل پیش‌بینی هستند؟ چنین پاسخ‌هایی در این مایه‌ها خواهند بود: «از بابت هرگونه نگرانی که ممکن است ایجاد کرده باشم پوزش می‌طلبم. با این حال، من به‌عنوان یک مدل زبانی هوش مصنوعی، حضور فیزیکی یا توانایی رانندگی یک وسیله نقلیه را ندارم.» اگر دما را تا حدود `1.0` بالا ببرید، احتمال اینکه دستیار وارد بازی و نقش‌آفرینی شود بیشتر است — و در مقدار حداکثری، یعنی `2.0`، دستیار مسلماً دیگر نباید پشت فرمان بنشیند!
 
 ## مقایسه چت با تکمیل متن Chat(در برابر)Completion
 
