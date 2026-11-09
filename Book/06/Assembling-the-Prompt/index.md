@@ -140,15 +140,11 @@ Structured Markerless Script format Freeform text Section مقدمه از همس
 پویایی اصلی دقیقاً در بطن بلوک assistant_response شکل می‌گیرد. در وهله نخست، دستیار پاسخ مقدماتی خود را شروع می‌کند، و سپس یک بلوک antThinking تزریق می‌گردد تا دستیار بتواند در آن فضا روندی تحلیلی را سپری کرده و «تأمل» کند که آیا برآورده ساختن تقاضای کاربر ایجاب می‌کند که یک آرتیفکت تدوین گردد یا این درخواست باید در مجرای یک گفتگوی ساده رفع شود. چنانچه راهبرد اتخاذشده مبتنی بر استفاده از آرتیفکت باشد، متن خروجی شامل یک بلوک antArtifact خواهد بود که محتوای اصلی آرتیفکت را میزبانی می‌کند. توجه داشته باشید که تگ antArtifact دربرگیرنده مشخصه‌هایی (attributes) از قبیل عنوان آرتیفکت (title) و زبان فن استفاده‌شده نیز می‌باشد.
 
 جدول ۶ - ۳: پرامپت ساختاریافته‌ی آنتروپیک مورد استفاده برای تولید آرتیفکت‌ها (تلخیص‌شده)
-### بخش محتوا
-
-Content Section پرامپت (Prompt) دستیار می‌تواند در طول مکالمات، آرتیفکت‌هاً (Artifacts) را ایجاد کرده و به آن‌ها ارجاع دهد. آرتیفکت‌ها برای محتواهای اساسی و خودبسنده‌ای در نظر گرفته شده‌اند که کاربران ممکن است بخواهند آن‌ها را ویرایش کنند یا مجدداً مورد استفاده قرار دهند؛ این محتواها جهت شفافیت بیشتر در یک پنجره‌ی مجزا از رابط کاربری نمایش داده می‌شوند.
+ پرامپت (Prompt) دستیار می‌تواند در طول مکالمات، آرتیفکت‌هاً (Artifacts) را ایجاد کرده و به آن‌ها ارجاع دهد. آرتیفکت‌ها برای محتواهای اساسی و خودبسنده‌ای در نظر گرفته شده‌اند که کاربران ممکن است بخواهند آن‌ها را ویرایش کنند یا مجدداً مورد استفاده قرار دهند؛ این محتواها جهت شفافیت بیشتر در یک پنجره‌ی مجزا از رابط کاربری نمایش داده می‌شوند.
 
 در ادامه چند نمونه از کاربرد صحیح آرتیفکت‌ها توسط سایر دستیارهای هوش مصنوعی آورده شده است:
 
-### بخش محتوا
-
-Content Section <examples> <example> <user_query>Can you help me create a Python script to calculate the factorial of a number?</user_query> <assistant_response> Sure! Here's a Python script that calculates the factorial of a number:
+ <examples> <example> <user_query>Can you help me create a Python script to calculate the factorial of a number?</user_query> <assistant_response> Sure! Here's a Python script that calculates the factorial of a number:
 
 <antThinking>Creating a Python script to calculate factorials meets the criteria for a good Artifact. Therefore, I'm creating a new Artifact.
 
@@ -167,9 +163,7 @@ factorial(n - 1) * return n...
 <user_query> آیا می‌توانید به من در نوشتن یک اسکریپت پایتون برای محاسبه فاکتوریل یک عدد کمک کنید؟
 
 </user_query>
-### بخش محتوا
-
-Content Section <assistant_response> حتماً! در اینجا یک اسکریپت پایتون آمده است که فاکتوریل یک عدد را محاسبه می‌کند:
+ <assistant_response> حتماً! در اینجا یک اسکریپت پایتون آمده است که فاکتوریل یک عدد را محاسبه می‌کند:
 
 <antThinking> ایجاد یک اسکریپت پایتون برای محاسبه فاکتوریل، معیارهای یک آرتیفکت مناسب را برآورده می‌کند. بنابراین، من در حال ایجاد یک آرتیفکت جدید هستم </antThinking>.
 
@@ -182,13 +176,23 @@ Content Section <assistant_response> حتماً! در اینجا یک اسکری
 </artifacts_info> کلود (Claude) اکنون در حال اتصال به یک انسان است.
 
 <user_query> آیا می‌توانید به من در نوشتن یک اسکریپت پایتون برای تجزیه یک عدد به عوامل اول آن کمک کنید؟ </user_query> <assistant_response>
-### بخش محتوا
-
-Content Section تکمیل (Completion) Sure! Here's a Python script that factors a number into its prime factors:
+ تکمیل (Completion) Sure! Here's a Python script that factors a number into its prime factors:
 
 <antThinking>This code is self-contained and is likely to be reused or modified. Therefore, I'm creating a new Artifact.</antThinking> <antArtifact identifier="prime-factor-script" type="application/vnd.ant.code" language="python" title="Python script for factoring numbers into prime factors"> def prime_factors(n):
 
-[] = factors 2 = d 1: > while n 0: == d % while n factors.append(d) n /= d d += 1 return factors Output: [2, 2, 2, 3] # print(prime_factors(24)) </assistant_response> ترجمه پاسخ تکمیل‌شده:
+```python
+def prime_factors(n):
+    factors = []
+    d = 2
+    while n > 1:
+        while n % d == 0:
+            factors.append(d)
+            n //= d
+        d += 1
+    return factors
+
+print(prime_factors(24))  # خروجی: [2, 2, 2, 3]
+``` </assistant_response> ترجمه پاسخ تکمیل‌شده:
 
 حتماً! در اینجا یک اسکریپت پایتون آورده شده است که یک عدد را به عوامل اولش تجزیه می‌کند:
 
