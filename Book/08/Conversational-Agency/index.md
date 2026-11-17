@@ -346,44 +346,15 @@ Let’s first understand the problem and devise a plan to solve the problem. The
 
 جدول ۸ - ساختار کامل بافتار۱ (context) یک عامل گفتگومحور را نمایش می‌دهد؛ این ساختار دربرگیرندٔه دیباچه (preamble)، گفتگوی پیشین و تبادل کنونی است.
 
-جدول ۸: - کالبدشناسی بافتار یک عامل گفتگومحور۱
-### بافتار اولیه در تعامل کاربر
+### جدول ۸ - ۱: کالبدشکافی کانتکست یک عامل گفتگوگر (Conversational Agent Context)
 
-دیباچه:(Preamble) متنی که رفتار کلی عامل را شرطی‌سازی و مشخص می‌کند.
+| لایه کانتکست | نقش و توضیحات | نمونه ساختار در کد پیام‌ها (Messages) |
+| :--- | :--- | :--- |
+| **دیباچه و پیام سیستم (Preamble / System)** | تعریف هویت عامل، خط‌مشی رفتار، محدودیت‌ها و تعاریف ابزارها | `messages = [{"role": "system", "content": "You are a helpful thermostat assistant..."}]` |
+| **تاریخچه گفتگو (Prior Conversation)** | سابقه تبادلات قبلی میان کاربر و دستیار هوشمند | `messages += [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]` |
+| **فراخوانی ابزار (Tool Calls)** | پیام مدل حاوی نام ابزار و آرگومان‌های JSON استخراج‌شده | `{"role": "assistant", "tool_calls": [{"id": "call_1", "function": {"name": "get_room_temp"}}]}` |
+| **پاسخ ابزار (Tool Response)** | نتیجه اجرای تابع محلی که جهت تصمیم‌گیری به مدل بازگردانده می‌شود | `{"role": "tool", "tool_call_id": "call_1", "name": "get_room_temp", "content": "64"}` |
 
-قوانین، دستورالعمل‌ها و انتظارات [ = messages {"role": "system", تعاریف ابزارهای مرتبط "content": "You are a helpful نمونه‌های چندشات (few-shot) در صورت لزوم and knowledgeable travel (تعاریف ابزارها معمولاً در پشت صحنٔه رابط برنامه‌نویسی (API) مدل درون assistant.
-
-پیام سیستم گنجانده می‌شوند).
-
-The current date is 8/9/2023."}] [ = tools <... insert definitions for get_flights(src, dest, date), get_ticket_info(flight_num)...> ] گفتگوی پیشین:(Prior conversation) بافتار گفتگو را تا این نقطه ثبت و نگهداری می‌کند.
-
-[ messages += پیام‌های پیشین کاربر و عامل، به‌استثنای تبادل کنونی {"role": "user", "content": "Are there any دست‌سازه‌ها: (artifacts) تکه‌داده‌های ضمیمه‌شده به پیام‌های کاربر یا flights عامل from Dulles to Seattle next Monday?"}, {"role": "assistant", "content": "Yes, there are two flights leaving on Monday, one at 9:20AM and one at 4:50PM.
-
-flights:
-
-- 8/14/2023 9:20AM, flight no.
-
-JL5441 from IAD to SEA
-- 8/14/2023 4:50PM, flight no.
-
-AS325 from IAD to SEA "} ]
-### بافتار پس از اجرای ابزار توسط عامل
-
-تبادل کنونی:(Current exchange) درخواست فعلی کاربر.
-
-جدیدترین پیام کاربر [ messages += هرگونه دست‌سازٔه ضمیمه‌شده توسط کاربر {"role": "user", "content": "Are there any فراخوانی‌های ابزار و پاسخ‌های تولیدشده در حین پاسخ‌گویی به درخواست tickets available کاربر first one?"} {"role": "assistant", [{ "tool_calls":
-
-{ "function":
-
-"name": "get_ticket_info" { "arguments":
-
-"flight_num":
-
-"JL5441"}}}]} {"role": "tool", "name": "get_ticket_info", "{ "content":
-
-"price": 350.00, "currency": "USD", "stops": ["ORD"], "duration": "7h40m"}} ] پاسخ عامل:(Agent response) این تبادل را جمع‌بندی می‌کند؛ در تبادل بعدی بخشی از گفتگوی پیشین خواهد بود.
-
-== response {"role": "assistant", "content": "There is a flight for $350 that makes a stop in Chicago."}
 ## انتخاب و‌سازمان دهی بافتار
 
 در بحث‌های پیشین، انواع گوناگونی از بافتارها را که ممکن است در یک برنامٔه کاربردی مبتنی بر مدل زبانی بزرگ (LLM) گفتگومحور حضور داشته باشند، معرفی کردیم. در این بخش، به بررسی چندین تکنیک و ایده جهت تجمیع و گنجاندن این بافتار در یک پرامپت خواهیم پرداخت. هیچ رویکرد جهان‌شمول و یگانه‌ای وجود ندارد؛ اثربخشی هر شیؤه خاص در مهندسی پرامپت کاملاً به حوزٔه کاربرد، مدل، داده‌ها و عوامل متعدد دیگری وابسته است. کلید موفقیت، آزمودن پیاپی ایده‌های جدید و سپس ارزیابی، ارزیابی و مجدداً ارزیابی مداوم است (توضیحات تکمیلی در این زمینه در فصل خواهد آمد۱۰.) در اینجا فهرستی از نکاتی که شایسته است هنگام انتخاب و سازمان‌دهی بافتار برای پرامپت خود مدنظر قرار دهید آورده شده است:
@@ -458,7 +429,7 @@ def run_conversation(client):
 
 شکل ۸: - یک نمودار توالی نشان‌دهنده طراحی عامل گفتگوگر۲![تصویر](../../../assets/image/08/figure_199_1.png)
 
-### جدول ۸ - ۲: نمونه اجرای کامل چرخه `run_conversation` و تعامل عامل با ابزارها
+### ### جدول ۸ - ۲: نمونه اجرای کامل چرخه `run_conversation` و تعامل عامل با ابزارها
 
 | نوبت | نقش | دیالوگ / [ فراخوانی ابزارها ] | توضیحات و تحلیل رفتار عامل هوشمند |
 | :---: | :---: | :--- | :--- |
